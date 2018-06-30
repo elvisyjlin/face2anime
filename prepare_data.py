@@ -2,13 +2,15 @@ import argparse
 import os
 from glob import glob
 from skimage import io
-from tqdm
+from skimage.transform import resize
+from tqdm import tqdm
 
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--source_folders', type=str, nargs = '*', required=True)
     parser.add_argument('-d', '--destination_folder', type=str, required=True)
     parser.add_argument('-f', '--image_format', type=str, default='jpg', choices=['jpg', 'png'])
+    parser.add_argument('-r', '--resize_image', type=int)
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -27,4 +29,6 @@ if __name__ == '__main__':
     
     for idx, file in tqdm(enumerate(file_list)):
         im = io.imread(file)
+        if args.resize_image is not None:
+            im = resize(im, (args.resize_image, args.resize_image))
         io.imsave(os.path.join(destination_folder, str(idx)+'.'+image_format), im)

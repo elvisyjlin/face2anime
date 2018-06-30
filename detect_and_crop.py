@@ -3,6 +3,7 @@ import cv2
 import mimetypes
 import os
 from glob import glob
+from smart_scale import smart_scale
 
 def rreplace(s, old, new, occurrence):
     li = s.rsplit(old, occurrence)
@@ -14,13 +15,13 @@ def parse():
     parser.add_argument('-d', '--destination', type=str, required=True)
     parser.add_argument('-c', '--cascade_file', type=str, required=True)
     parser.add_argument('-r', '--resize_image', type=int)
-    parser.add_argument('-p', '--padding_ratio', type=float, default=1.66)
+    parser.add_argument('-p', '--padding_ratio', type=float, default=1.0)
     parser.add_argument('-f', '--filter', action='store_true')
     parser.add_argument('--debug', action='store_true')
     return parser.parse_args()
 
 def detect_and_crop(in_path, out_path, cascade, 
-                    resize=None, padding_raio=None, 
+                    resize=None, padding_ratio=None, 
                     debug=False):
     if not os.path.isfile(cascade):
         raise RuntimeError('{} not found'.format(cascade))
@@ -64,14 +65,14 @@ def detect_and_crop(in_path, out_path, cascade,
             
         idx = 0
         for image in images:
-            h, w, c = image.shape
-            if h > 4096:
+            img_h, img_w, img_c = image.shape
+            if img_h > 4096:
                 if debug: print('Too large!!!')
-                ratio = 4096 / h
-                new_h = round(h * ratio)
-                new_w = round(w * ratio)
+                ratio = 4096 / img_h
+                img_h = int(img_h * ratio)
+                img_w = int(img_w * ratio)
                 if debug: print(image.shape)
-                image = cv2.resize(image, (new_w, new_h), interpolation = cv2.INTER_CUBIC)
+                image = cv2.resize(image, (img_w, img_h), interpolation = cv2.INTER_CUBIC)
                 if debug: print(image.shape)
                 import time
                 time.sleep(10)
@@ -89,10 +90,12 @@ def detect_and_crop(in_path, out_path, cascade,
             faces = classifier.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(24, 24))
 
             for x, y, w, h in faces:
-                pad = 0 if padding_raio is None else h * padding_raio
+                if debug: print(image.shape, (x, y, w, h))
+                pad = 0 if padding_ratio is None else h * padding_ratio
                 # cv2.rectangle(image, (x, y), (x+w, y+h), (0, 0, 255), 2)
-                if filter and (w < resize or h < resize):
+                if resize is not None and filter and (w < resize or h < resize):
                     continue
+                (x, y, w, h), _ = smart_scale((x, y, w, h), (0, 0, img_w, img_h), padding_ratio)
                 out_image = image[y:y+h, x:x+w]
                 if resize is not None:
                     out_image = cv2.resize(out_image, (resize, resize), interpolation = cv2.INTER_CUBIC)
